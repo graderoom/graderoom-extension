@@ -1,0 +1,31 @@
+{
+  "name": "Graderoom",
+  "description": "Graderoom extension",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_icon": "icons/icon.png"
+  },
+  "host_permissions": [
+    "https://powerschool.bcp.org/*",
+    "https://adfs.bcp.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.graderoom.me/",
+        "http://localhost:5996/",
+        "http://localhost:5998/"
+      ],
+      "js": [
+        "content-script.js"
+      ],
+      "run_at": "document_idle",
+      "world": "ISOLATED"
+    }
+  ],
+  "permissions": ["offscreen", "tabs", "declarativeNetRequest"]
+}
