@@ -27,5 +27,5 @@
       "world": "ISOLATED"
     }
   ],
-  "permissions": ["offscreen", "tabs", "declarativeNetRequest"]
+  "permissions": ["offscreen", "declarativeNetRequest"]
 }

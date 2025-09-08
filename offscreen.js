@@ -58,22 +58,22 @@ async function postWithRetries(url, data) {
     return response;
 }
 
-function handleMessages(message) {
+function handleMessages(message, sender, sendResponse) {
     if (message.target !== 'offscreen') {
         return false;
     }
 
     switch (message.type) {
         case 'get-present':
-            getPresentOrLocked(message.classData || null, message.termData || null).then((data) => chrome.runtime.sendMessage({
-                target: 'site', type: 'get-present-response', data: data, token: message.token
+            getPresentOrLocked(message.classData || null, message.termData || null).then((data) => sendResponse({
+                type: 'get-present-response', data: data, token: message.token
             }));
-            return false;
+            return true;
         case 'get-history':
-            getHistory().then((data) => chrome.runtime.sendMessage({
-                target: 'site', type: 'get-history-response', data: data, token: message.token
-            }));
-            return false;
+            getHistory().then((data) => sendResponse(chrome.runtime.sendMessage({
+                type: 'get-history-response', data: data, token: message.token
+            })));
+            return true;
         default:
             return false;
     }

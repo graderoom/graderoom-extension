@@ -51,24 +51,6 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
 });
 
-chrome.runtime.onMessage.addListener(handleMessages);
-
-function handleMessages(message) {
-    if (message.target === 'site') {
-        chrome.tabs.query({url: 'https://*.graderoom.me/'}, (tabs) => {
-            tabs.forEach((tab) => chrome.tabs.sendMessage(tab.id, message));
-        });
-        chrome.tabs.query({url: 'http://localhost:5996/'}, (tabs) => {
-            tabs.forEach((tab) => chrome.tabs.sendMessage(tab.id, message));
-        });
-        chrome.tabs.query({url: 'http://localhost:5998/'}, (tabs) => {
-            tabs.forEach((tab) => chrome.tabs.sendMessage(tab.id, message));
-        });
-    }
-
-    return false;
-}
-
 (async () => {
     await setupOffscreenDocument('offscreen.html', ['DOM_PARSER'], 'Needed to parse PowerSchool data in the background');
 })();
