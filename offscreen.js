@@ -66,16 +66,12 @@ function handleMessages(message) {
     switch (message.type) {
         case 'get-present':
             getPresentOrLocked(message.classData || null, message.termData || null).then((data) => chrome.runtime.sendMessage({
-                target: 'site',
-                type: 'get-present-response',
-                data: data
+                target: 'site', type: 'get-present-response', data: data, token: message.token
             }));
             return false;
         case 'get-history':
             getHistory().then((data) => chrome.runtime.sendMessage({
-                target: 'site',
-                type: 'get-history-response',
-                data: data
+                target: 'site', type: 'get-history-response', data: data, token: message.token
             }));
             return false;
         default:
@@ -257,7 +253,7 @@ async function getPresentOrLocked(classData, termData) {
 
     let lockedMsg = doc.querySelector('div.feedback-note');
 
-    if (true || lockedMsg && lockedMsg.textContent === 'Display of final grades has been disabled by your school.') {
+    if (lockedMsg && lockedMsg.textContent === 'Display of final grades has been disabled by your school.') {
         console.log('PowerSchool is locked.');
         console.log('Getting data from locked PowerSchool...');
         return await getLocked(classData, termData);
@@ -551,8 +547,7 @@ async function getLocked(classData, termData) {
             }
         } else {
             termData = {
-                term: term,
-                semester: semester
+                term: term, semester: semester
             };
         }
     } else {
