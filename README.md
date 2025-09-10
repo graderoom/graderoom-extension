@@ -2,7 +2,11 @@
 ## Overview
 This extension provides client-side scraping for Graderoom. It currently only supports Chrome and Edge.
 ## Installation
-To install the Graderoom extension, follow these steps:
+### Release installation
+Add the extension to your browser from [here](https://chromewebstore.google.com/detail/graderoom/dhidkhdjfikcdmfngbpnbgpnboiodnoo)
+
+### Manual installation *For Developers only*
+To install the Graderoom extension in Developer mode, follow these steps:
 1. [Download this repository as a ZIP file](https://github.com/graderoom/graderoom-extension/archive/refs/heads/master.zip) and extract it to your desired location.
 2. Navigate to ```chrome://extensions/``` in your Chrome or Edge browser.
 3. Enable "Developer mode" by toggling the switch.
