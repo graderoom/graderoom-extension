@@ -1,3 +1,29 @@
+chrome.runtime.onMessageExternal.addListener(handleMessages);
+
+chrome.runtime.onInstalled.addListener(async () => {
+    const rules = [{
+        id: 1,
+        action: {
+            type: 'modifyHeaders',
+            requestHeaders: [
+                {
+                    header: 'Origin', operation: 'set', value: 'https://powerschool.bcp.org'
+                },
+                {
+                    header: 'Referer', operation: 'set', value: 'https://powerschool.bcp.org/guardian/home.html'
+                },],
+        },
+        condition: {
+            urlFilter: 'https://powerschool.bcp.org/ws/xte/assignment/lookup?_='
+        }
+    }];
+
+    await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: rules.map(r => r.id),
+        addRules: rules,
+    });
+});
+
 let creating; // A global promise to avoid concurrency issues
 async function setupOffscreenDocument(path, reasons, justification) {
     // Check all windows controlled by the service worker to see if one
@@ -27,29 +53,14 @@ async function setupOffscreenDocument(path, reasons, justification) {
     }
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
-    const rules = [{
-        id: 1,
-        action: {
-            type: 'modifyHeaders',
-            requestHeaders: [
-                {
-                    header: 'Origin', operation: 'set', value: 'https://powerschool.bcp.org'
-                },
-                {
-                    header: 'Referer', operation: 'set', value: 'https://powerschool.bcp.org/guardian/home.html'
-                },],
-        },
-        condition: {
-            urlFilter: 'https://powerschool.bcp.org/ws/xte/assignment/lookup?_='
-        }
-    }];
+function handleMessages(message, sender, sendResponse) {
+    if (message.type !== 'get-version') {
+        return false;
+    }
 
-    await chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: rules.map(r => r.id),
-        addRules: rules,
-    });
-});
+    sendResponse({version: chrome.runtime.getManifest().version});
+    return false;
+}
 
 (async () => {
     await setupOffscreenDocument('offscreen.html', ['DOM_PARSER'], 'Needed to parse PowerSchool data in the background');

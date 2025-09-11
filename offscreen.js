@@ -1,4 +1,4 @@
-chrome.runtime.onMessage.addListener(handleMessages);
+chrome.runtime.onMessageExternal.addListener(handleMessages);
 
 async function getWithRetries(url) {
     let initialWaitTime = 2; // seconds
