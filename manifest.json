@@ -1,10 +1,11 @@
 {
   "name": "Graderoom",
   "description": "Graderoom extension",
-  "version": "1.1",
+  "version": "1.2",
   "manifest_version": 3,
   "action": {
-    "default_icon": "icons/icon.png"
+    "default_icon": "icons/icon.png",
+    "default_state": "disabled"
   },
   "host_permissions": [
     "https://powerschool.bcp.org/*",

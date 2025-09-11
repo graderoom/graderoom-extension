@@ -66,12 +66,12 @@ function handleMessages(message, sender, sendResponse) {
     switch (message.type) {
         case 'get-present':
             getPresentOrLocked(message.classData || null, message.termData || null).then((data) => sendResponse({
-                type: 'get-present-response', data: data, token: message.token
+                type: 'get-present-response', data: data
             }));
             return true;
         case 'get-history':
             getHistory().then((data) => sendResponse(chrome.runtime.sendMessage({
-                type: 'get-history-response', data: data, token: message.token
+                type: 'get-history-response', data: data
             })));
             return true;
         default:
