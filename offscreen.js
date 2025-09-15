@@ -70,9 +70,9 @@ function handleMessages(message, sender, sendResponse) {
             }));
             return true;
         case 'get-history':
-            getHistory().then((data) => sendResponse(chrome.runtime.sendMessage({
+            getHistory().then((data) => sendResponse({
                 type: 'get-history-response', data: data
-            })));
+            }));
             return true;
         default:
             return false;
