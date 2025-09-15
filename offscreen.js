@@ -455,7 +455,7 @@ async function getHistory() {
         console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
     }
 
-    if (allHistory === {}) {
+    if (isEmptyObject(allHistory)) {
         console.log('No class data.');
         return {success: false, message: 'No class data.'};
     }
@@ -618,4 +618,13 @@ function cleanNumber(str) {
     } catch (e) {
         return false;
     }
+}
+
+function isEmptyObject(value) {
+  return (
+    typeof value === 'object' && // Ensure it's an object (not null or a primitive)
+    value !== null && // Exclude null
+    !Array.isArray(value) && // Exclude arrays
+    Object.keys(value).length === 0 // Check if it has no enumerable properties
+  );
 }
