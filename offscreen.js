@@ -161,7 +161,7 @@ async function parsePSClass(localClass, rawData) {
 
     let raw = await rawData.json();
 
-    localClass.grades = raw.map(stripper).filter(removeEmpty).sort((a, b) => b.sort_date - a.sort_date);
+    localClass.grades = raw.map(stripper).filter(removeEmpty).sort((a, b) => a.sort_date - b.sort_date);
     localClass.grades = localClass.grades.map(grade => {
         delete grade.sort_date;
         return grade;
