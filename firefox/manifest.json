@@ -1,0 +1,50 @@
+{
+  "name": "Graderoom",
+  "description": "Graderoom extension",
+  "version": "1.5.1",
+  "manifest_version": 3,
+  "action": {
+    "default_icon": "icon.png"
+  },
+  "host_permissions": [
+    "https://powerschool.bcp.org/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.graderoom.me/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    },
+    {
+      "matches": [
+        "https://*.graderoom.me/*"
+      ],
+      "js": [
+        "presence.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "extension@graderom.me",
+      "data_collection_permissions": {
+        "required": [
+          "websiteContent"
+        ]
+      }
+    }
+  }
+}

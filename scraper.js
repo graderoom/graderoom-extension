@@ -1,15 +1,18 @@
-chrome.runtime.onMessageExternal.addListener(handleMessages);
-
-async function getWithRetries(url) {
+async function getWithRetries(url, failOnRedirect = false) {
     let initialWaitTime = 2; // seconds
     let waitTime = initialWaitTime;
 
     let response;
 
     while (true) {
-        response = await fetch(url, {
-            method: 'GET', signal: AbortSignal.timeout(10000) // 10 seconds timeout
-        });
+        await fetch(url, {
+            method: 'GET', redirect: failOnRedirect ? 'error' : 'follow', signal: AbortSignal.timeout(10000), // 10 seconds timeout
+        }).then((_response) => response = _response)
+            .catch(() => response = null);
+
+        if (response === null) {
+            return null;
+        }
 
         if (response.status === 429) {
             console.log(`Graderoom is ${waitTime > initialWaitTime ? 'still ' : ''}being rate-limited. Waiting ${waitTime} seconds...`);
@@ -56,27 +59,6 @@ async function postWithRetries(url, data) {
     }
 
     return response;
-}
-
-function handleMessages(message, sender, sendResponse) {
-    if (message.target !== 'offscreen') {
-        return false;
-    }
-
-    switch (message.type) {
-        case 'get-present':
-            getPresentOrLocked(message.classData || null, message.termData || null).then((data) => sendResponse({
-                type: 'get-present-response', data: data
-            }));
-            return true;
-        case 'get-history':
-            getHistory().then((data) => sendResponse({
-                type: 'get-history-response', data: data
-            }));
-            return true;
-        default:
-            return false;
-    }
 }
 
 async function getClass(localClass) {
@@ -238,11 +220,11 @@ async function getTermAndSemesterData() {
     return {term, semester};
 }
 
-async function getPresentOrLocked(classData, termData) {
+export async function getPresentOrLocked(classData, termData, port) {
     let url = 'https://powerschool.bcp.org/guardian/termgrades.html';
-    let resp = await getWithRetries(url);
+    let resp = await getWithRetries(url, true);
 
-    if (resp?.url !== 'https://powerschool.bcp.org/guardian/termgrades.html') {
+    if (resp === null) {
         console.log('Not logged in.');
         return {success: false, message: 'Not logged in.'};
     }
@@ -254,24 +236,28 @@ async function getPresentOrLocked(classData, termData) {
     let lockedMsg = doc.querySelector('div.feedback-note');
 
     if (lockedMsg && lockedMsg.textContent === 'Display of final grades has been disabled by your school.') {
+        port.postMessage({type: 'status', message: 'PowerSchool is locked.'});
+        port.postMessage({type: 'status', message: 'Getting data from locked PowerSchool...'});
         console.log('PowerSchool is locked.');
         console.log('Getting data from locked PowerSchool...');
-        return await getLocked(classData, termData);
+        return await getLocked(classData, termData, port);
     }
 
-    return await getPresent();
+    return await getPresent(port);
 }
 
-async function getPresent() {
-    console.log('Searching for courses...');
-
+async function getPresent(port) {
     let url = `https://powerschool.bcp.org/guardian/home.html`;
-    let resp = await getWithRetries(url);
+    let resp = await getWithRetries(url, true);
 
-    if (resp?.url !== `https://powerschool.bcp.org/guardian/home.html`) {
+    if (resp === null) {
         console.log('Not logged in.');
         return {success: false, message: 'Not logged in.'};
     }
+
+    let progress = 35;
+    port.postMessage({type: 'status', message: 'Searching for courses...', progress});
+    console.log('Searching for courses...');
 
     let text = await resp.text();
     let parser = new DOMParser();
@@ -291,6 +277,13 @@ async function getPresent() {
     let totalCourseCount = classRows.length;
     let scrapedCourseCount = 0;
 
+    let initialProgress = progress;
+    let maxProgress = 90;
+    progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
+
+    port.postMessage({
+        type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress
+    });
     console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
 
     for (let classRow of classRows) {
@@ -325,6 +318,10 @@ async function getPresent() {
 
         if (assignmentsLink === null) {
             totalCourseCount--;
+            progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
+            port.postMessage({
+                type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress
+            });
             console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
             continue;
         }
@@ -336,9 +333,13 @@ async function getPresent() {
             totalCourseCount--;
         }
 
+        progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
+        port.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
         console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
     }
 
+    progress = 95;
+    port.postMessage({type: 'status', message: 'Fetching term and semester data...', progress});
     let {term, semester} = await getTermAndSemesterData();
 
     if (term === null || semester === null) {
@@ -346,23 +347,27 @@ async function getPresent() {
     }
 
     if (allClasses.length === 0) {
-        console.log('No class data.');
+        port.postMessage({type: 'status', message: 'No class data.', progress: 0});
         return {success: false, message: 'No class data.'};
     }
 
-    console.log('Get Present Complete!');
+    port.postMessage({type: 'status', message: 'Sync Complete!', progress: 100});
+    console.log('Sync Complete!');
     return {success: true, data: {[term]: {[semester]: allClasses}}};
 }
 
-async function getHistory() {
+export async function getHistory(port) {
     let url = 'https://powerschool.bcp.org/guardian/termgrades.html';
-    let resp = await getWithRetries(url);
+    let resp = await getWithRetries(url, true);
 
-    if (resp?.url !== 'https://powerschool.bcp.org/guardian/termgrades.html') {
+    if (resp === null) {
         console.log('Not logged in.');
         return {success: false, message: 'Not logged in.'};
     }
 
+    let progress = 35;
+
+    port.postMessage({type: 'status', message: 'Searching for courses...', progress});
     console.log('Searching for courses...');
 
     let text = await resp.text();
@@ -377,12 +382,21 @@ async function getHistory() {
     let totalTermCount = yearLinks.length;
     let scrapedTermCount = 0;
 
+    let initialProgress = progress;
+    let maxProgress = 100;
+    progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+
+    port.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress});
     console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
 
     for (let yearLink of yearLinks) {
         let link = yearLink.querySelector('a');
         if ('SS' in link.textContent) {
             totalTermCount--;
+            progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+            port.postMessage({
+                type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
+            });
             console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
             continue;
         }
@@ -391,6 +405,10 @@ async function getHistory() {
 
         if (!yearLink.getAttribute('href')) {
             totalTermCount--;
+            progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+            port.postMessage({
+                type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
+            });
             console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
             continue;
         }
@@ -452,6 +470,8 @@ async function getHistory() {
             scrapedTermCount--;
         }
 
+        progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+        port.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`});
         console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
     }
 
@@ -464,15 +484,18 @@ async function getHistory() {
     return {success: true, data: allHistory};
 }
 
-async function getLocked(classData, termData) {
-    console.log('Fetching course data...');
+async function getLocked(classData, termData, port) {
     let url = 'https://powerschool.bcp.org/guardian/teachercomments.html';
-    let resp = await getWithRetries(url);
+    let resp = await getWithRetries(url, true);
 
-    if (resp?.url !== 'https://powerschool.bcp.org/guardian/teachercomments.html') {
+    if (resp === null) {
         console.log('Not logged in.');
         return {success: false, message: 'Not logged in.'};
     }
+
+    let progress = 10;
+    port.postMessage({type: 'status', message: 'Fetching course data...', progress});
+    console.log('Fetching course data...');
 
     let text = await resp.text();
     let parser = new DOMParser();
@@ -487,10 +510,13 @@ async function getLocked(classData, termData) {
 
     let newClassData = [];
 
+    progress = 15;
+
     let studentId;
     if (!useNewData) {
         studentId = dataWeHave[0].student_id;
     } else {
+        port.postMessage({type: 'status', message: 'Fetching student id...', progress});
         console.log('Fetching student id...');
         url = 'https://powerschool.bcp.org/guardian/forms.html';
         resp = await getWithRetries(url);
@@ -501,13 +527,18 @@ async function getLocked(classData, termData) {
         studentId = doc.querySelector('div#content-main').textContent.split('studentdcid = \'')[1].split('\'')[0];
     }
 
+    progress = 20;
+
     if (useNewData) {
+        port.postMessage({type: 'status', message: 'No existing course data. Syncing all courses...', progress});
         console.log('No existing course data. Syncing all courses...');
     }
 
     let term = null;
     let semester = null;
     if (termData !== null) {
+        progress = 25;
+        port.postMessage({type: 'status', message: 'Fetching terms...', progress});
         let {_term, _semester} = await getTermAndSemesterData();
         if (termData['term'] !== _term) {
             useNewData = true;
@@ -517,8 +548,13 @@ async function getLocked(classData, termData) {
     }
 
     if (useNewData) {
+        port.postMessage({type: 'status', message: 'Checking for new course data...', progress});
         console.log('Checking for new course data...');
         for (let i = 0; i < classNames.length; i++) {
+            let initialProgress = progress;
+            let maxProgress = 35;
+            progress = initialProgress + (maxProgress - initialProgress) * (i + 1) / classNames.length;
+            port.postMessage({type: 'status', message: `Found new course ${classNames[i]}`, progress});
             console.log(`Found new course ${classNames[i]}`);
             let course = courses[i + 1];
             let teacherName = course.querySelectorAll('td')[3].querySelectorAll('a')[1].textContent.split('Email ')[1];
@@ -563,6 +599,11 @@ async function getLocked(classData, termData) {
     let totalCourseCount = classData.length;
     let scrapedCourseCount = 0;
 
+    let initialProgress = progress;
+    let maxProgress = 90;
+    progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
+
+    port.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
     console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
 
     for (let data of classData) {
@@ -586,18 +627,25 @@ async function getLocked(classData, termData) {
         localClass = await parsePSClass(localClass, await getClass(localClass));
         allClasses.push(localClass);
         scrapedCourseCount++;
+        progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
+        port.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
         console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
     }
 
+    progress = 95;
+    port.postMessage({type: 'status', message: 'Fetching term and semester data...', progress});
     console.log('Fetching term and semester data...');
     term = termData.term;
     semester = termData.semester;
 
     if (allClasses.length > 0) {
+        port.postMessage({type: 'status', message: 'Sync Complete!', progress: 100});
         console.log('Sync Complete!');
         return {success: true, data: {[term]: {[semester]: allClasses}}};
     }
 
+    port.postMessage({type: 'status', message: 'No class data.', progress: 0});
+    console.log('No class data.');
     return {success: false, message: 'No class data.'};
 }
 
@@ -621,10 +669,9 @@ function cleanNumber(str) {
 }
 
 function isEmptyObject(value) {
-  return (
-    typeof value === 'object' && // Ensure it's an object (not null or a primitive)
-    value !== null && // Exclude null
-    !Array.isArray(value) && // Exclude arrays
-    Object.keys(value).length === 0 // Check if it has no enumerable properties
-  );
+    return (typeof value === 'object' && // Ensure it's an object (not null or a primitive)
+        value !== null && // Exclude null
+        !Array.isArray(value) && // Exclude arrays
+        Object.keys(value).length === 0 // Check if it has no enumerable properties
+    );
 }
