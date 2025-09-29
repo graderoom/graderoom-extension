@@ -1,5 +1,8 @@
 chrome.runtime.onMessageExternal.addListener(handleMessages);
 
+let _port = null;
+chrome.runtime.onConnectExternal.addListener((port) => _port = port);
+
 chrome.runtime.onInstalled.addListener(async () => {
     const rules = [{
         id: 1,
