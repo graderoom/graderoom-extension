@@ -6,6 +6,7 @@ FIREFOX_PACKAGE = graderoom-firefox-extension
 $(CHROME_PACKAGE):
 	xcopy icons\ $(CHROME_PACKAGE)\ /s
 	xcopy chrome\ $(CHROME_PACKAGE) /s
+	xcopy scraper.js $(CHROME_PACKAGE)
 
 $(CHROME_PACKAGE).zip: $(CHROME_PACKAGE)
 	zip -rj $@ $(CHROME_PACKAGE)/* LICENSE
