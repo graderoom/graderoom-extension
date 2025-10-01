@@ -236,8 +236,8 @@ export async function getPresentOrLocked(classData, termData, port) {
     let lockedMsg = doc.querySelector('div.feedback-note');
 
     if (lockedMsg && lockedMsg.textContent === 'Display of final grades has been disabled by your school.') {
-        port.postMessage({type: 'status', message: 'PowerSchool is locked.'});
-        port.postMessage({type: 'status', message: 'Getting data from locked PowerSchool...'});
+        port?.postMessage({type: 'status', message: 'PowerSchool is locked.'});
+        port?.postMessage({type: 'status', message: 'Getting data from locked PowerSchool...'});
         console.log('PowerSchool is locked.');
         console.log('Getting data from locked PowerSchool...');
         return await getLocked(classData, termData, port);
@@ -256,7 +256,7 @@ async function getPresent(port) {
     }
 
     let progress = 35;
-    port.postMessage({type: 'status', message: 'Searching for courses...', progress});
+    port?.postMessage({type: 'status', message: 'Searching for courses...', progress});
     console.log('Searching for courses...');
 
     let text = await resp.text();
@@ -281,7 +281,7 @@ async function getPresent(port) {
     let maxProgress = 90;
     progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
 
-    port.postMessage({
+    port?.postMessage({
         type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress
     });
     console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
@@ -319,7 +319,7 @@ async function getPresent(port) {
         if (assignmentsLink === null) {
             totalCourseCount--;
             progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
-            port.postMessage({
+            port?.postMessage({
                 type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress
             });
             console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
@@ -334,12 +334,12 @@ async function getPresent(port) {
         }
 
         progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
-        port.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
+        port?.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
         console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
     }
 
     progress = 95;
-    port.postMessage({type: 'status', message: 'Fetching term and semester data...', progress});
+    port?.postMessage({type: 'status', message: 'Fetching term and semester data...', progress});
     let {term, semester} = await getTermAndSemesterData();
 
     if (term === null || semester === null) {
@@ -347,11 +347,11 @@ async function getPresent(port) {
     }
 
     if (allClasses.length === 0) {
-        port.postMessage({type: 'status', message: 'No class data.', progress: 0});
+        port?.postMessage({type: 'status', message: 'No class data.', progress: 0});
         return {success: false, message: 'No class data.'};
     }
 
-    port.postMessage({type: 'status', message: 'Sync Complete!', progress: 100});
+    port?.postMessage({type: 'status', message: 'Sync Complete!', progress: 100});
     console.log('Sync Complete!');
     return {success: true, data: {[term]: {[semester]: allClasses}}};
 }
@@ -367,7 +367,7 @@ export async function getHistory(port) {
 
     let progress = 35;
 
-    port.postMessage({type: 'status', message: 'Searching for courses...', progress});
+    port?.postMessage({type: 'status', message: 'Searching for courses...', progress});
     console.log('Searching for courses...');
 
     let text = await resp.text();
@@ -386,7 +386,7 @@ export async function getHistory(port) {
     let maxProgress = 100;
     progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
 
-    port.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress});
+    port?.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress});
     console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
 
     for (let yearLink of yearLinks) {
@@ -394,7 +394,7 @@ export async function getHistory(port) {
         if ('SS' in link.textContent) {
             totalTermCount--;
             progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
-            port.postMessage({
+            port?.postMessage({
                 type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
             });
             console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
@@ -406,7 +406,7 @@ export async function getHistory(port) {
         if (!yearLink.getAttribute('href')) {
             totalTermCount--;
             progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
-            port.postMessage({
+            port?.postMessage({
                 type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
             });
             console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
@@ -471,7 +471,7 @@ export async function getHistory(port) {
         }
 
         progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
-        port.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`});
+        port?.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`});
         console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
     }
 
@@ -494,7 +494,7 @@ async function getLocked(classData, termData, port) {
     }
 
     let progress = 10;
-    port.postMessage({type: 'status', message: 'Fetching course data...', progress});
+    port?.postMessage({type: 'status', message: 'Fetching course data...', progress});
     console.log('Fetching course data...');
 
     let text = await resp.text();
@@ -516,7 +516,7 @@ async function getLocked(classData, termData, port) {
     if (!useNewData) {
         studentId = dataWeHave[0].student_id;
     } else {
-        port.postMessage({type: 'status', message: 'Fetching student id...', progress});
+        port?.postMessage({type: 'status', message: 'Fetching student id...', progress});
         console.log('Fetching student id...');
         url = 'https://powerschool.bcp.org/guardian/forms.html';
         resp = await getWithRetries(url);
@@ -530,7 +530,7 @@ async function getLocked(classData, termData, port) {
     progress = 20;
 
     if (useNewData) {
-        port.postMessage({type: 'status', message: 'No existing course data. Syncing all courses...', progress});
+        port?.postMessage({type: 'status', message: 'No existing course data. Syncing all courses...', progress});
         console.log('No existing course data. Syncing all courses...');
     }
 
@@ -538,7 +538,7 @@ async function getLocked(classData, termData, port) {
     let semester = null;
     if (termData !== null) {
         progress = 25;
-        port.postMessage({type: 'status', message: 'Fetching terms...', progress});
+        port?.postMessage({type: 'status', message: 'Fetching terms...', progress});
         let {_term, _semester} = await getTermAndSemesterData();
         if (termData['term'] !== _term) {
             useNewData = true;
@@ -548,13 +548,13 @@ async function getLocked(classData, termData, port) {
     }
 
     if (useNewData) {
-        port.postMessage({type: 'status', message: 'Checking for new course data...', progress});
+        port?.postMessage({type: 'status', message: 'Checking for new course data...', progress});
         console.log('Checking for new course data...');
         for (let i = 0; i < classNames.length; i++) {
             let initialProgress = progress;
             let maxProgress = 35;
             progress = initialProgress + (maxProgress - initialProgress) * (i + 1) / classNames.length;
-            port.postMessage({type: 'status', message: `Found new course ${classNames[i]}`, progress});
+            port?.postMessage({type: 'status', message: `Found new course ${classNames[i]}`, progress});
             console.log(`Found new course ${classNames[i]}`);
             let course = courses[i + 1];
             let teacherName = course.querySelectorAll('td')[3].querySelectorAll('a')[1].textContent.split('Email ')[1];
@@ -603,7 +603,7 @@ async function getLocked(classData, termData, port) {
     let maxProgress = 90;
     progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
 
-    port.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
+    port?.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
     console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
 
     for (let data of classData) {
@@ -628,23 +628,23 @@ async function getLocked(classData, termData, port) {
         allClasses.push(localClass);
         scrapedCourseCount++;
         progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
-        port.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
+        port?.postMessage({type: 'status', message: `Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`, progress});
         console.log(`Synced ${scrapedCourseCount} of ${totalCourseCount} courses...`);
     }
 
     progress = 95;
-    port.postMessage({type: 'status', message: 'Fetching term and semester data...', progress});
+    port?.postMessage({type: 'status', message: 'Fetching term and semester data...', progress});
     console.log('Fetching term and semester data...');
     term = termData.term;
     semester = termData.semester;
 
     if (allClasses.length > 0) {
-        port.postMessage({type: 'status', message: 'Sync Complete!', progress: 100});
+        port?.postMessage({type: 'status', message: 'Sync Complete!', progress: 100});
         console.log('Sync Complete!');
         return {success: true, data: {[term]: {[semester]: allClasses}}};
     }
 
-    port.postMessage({type: 'status', message: 'No class data.', progress: 0});
+    port?.postMessage({type: 'status', message: 'No class data.', progress: 0});
     console.log('No class data.');
     return {success: false, message: 'No class data.'};
 }
