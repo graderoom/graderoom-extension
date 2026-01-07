@@ -61,12 +61,12 @@ async function postWithRetries(url, data) {
     return response;
 }
 
-async function getClass(localClass) {
+async function getClass(studentId, sectionId) {
     let now = new Date();
     let startDate = JSON.stringify(`${now.getFullYear() - 4}-01-01`);
     let endDate = JSON.stringify(`${now.getFullYear() + 4}-01-01`);
 
-    let data = `{"section_ids":[${localClass.section_id}],"student_ids":[${localClass.student_id}],"start_date":${startDate},"end_date":${endDate}}`;
+    let data = `{"section_ids":[${sectionId}],"student_ids":[${studentId}],"start_date":${startDate},"end_date":${endDate}}`;
 
     let url = `https://powerschool.bcp.org/ws/xte/assignment/lookup?_=`;
     return await postWithRetries(url, data);
@@ -185,7 +185,7 @@ async function scrapeClass(url, allClasses, overallPercent, overallLetter) {
         'grades': [],
     };
 
-    localClass = await parsePSClass(localClass, await getClass(localClass));
+    localClass = await parsePSClass(localClass, await getClass(studentId, sectionId));
 
     allClasses.push(localClass);
     return true;
@@ -356,134 +356,6 @@ async function getPresent(port) {
     return {success: true, data: {[term]: {[semester]: allClasses}}};
 }
 
-export async function getHistory(port) {
-    let url = 'https://powerschool.bcp.org/guardian/termgrades.html';
-    let resp = await getWithRetries(url, true);
-
-    if (resp === null) {
-        console.log('Not logged in.');
-        return {success: false, message: 'Not logged in.'};
-    }
-
-    let progress = 35;
-
-    port?.postMessage({type: 'status', message: 'Searching for courses...', progress});
-    console.log('Searching for courses...');
-
-    let text = await resp.text();
-    let parser = new DOMParser();
-    let doc = parser.parseFromString(text, 'text/html');
-
-    let allHistory = {};
-
-    let yearList = doc.querySelector('ul.tabs');
-    let yearLinks = yearList.querySelectorAll('li');
-
-    let totalTermCount = yearLinks.length;
-    let scrapedTermCount = 0;
-
-    let initialProgress = progress;
-    let maxProgress = 100;
-    progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
-
-    port?.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress});
-    console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
-
-    for (let yearLink of yearLinks) {
-        let link = yearLink.querySelector('a');
-        if ('SS' in link.textContent) {
-            totalTermCount--;
-            progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
-            port?.postMessage({
-                type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
-            });
-            console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
-            continue;
-        }
-
-        let year = yearLink.textContent.trim().substring(0, 5);
-
-        if (!yearLink.getAttribute('href')) {
-            totalTermCount--;
-            progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
-            port?.postMessage({
-                type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
-            });
-            console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
-            continue;
-        }
-
-        url = `https://powerschool.bcp.org/guardian/${link.getAttribute('href')}`;
-        text = await resp.text();
-        doc = parser.parseFromString(text, 'text/html');
-
-        let mainTable = doc.querySelector('table');
-        let mainTableRows = mainTable.querySelectorAll('tr');
-
-        let title = '';
-        let semesterClasses = [];
-        let yearData = {};
-
-        for (let row of mainTableRows) {
-            let th = row.querySelector('th');
-            if (th?.textContent in ['S0', 'S1', 'S2']) {
-                if (semesterClasses.length > 0) {
-                    yearData[title === 'S0' ? 'S3' : title] = semesterClasses;
-                }
-
-                title = th.textContent;
-                semesterClasses = [];
-            }
-
-            if (title !== '' && row.querySelector('td.table-element-text-align-start')) {
-                let data = row.querySelectorAll('td');
-
-                let className = cleanString(data[0].textContent);
-                let overallLetter = cleanString(data[1].textContent);
-                let overallPercent = cleanNumber(data[2].textContent);
-
-                if (row.querySelector('a')) {
-                    url = `https://powerschool.bcp.org/guardian/${row.querySelector('a').getAttribute('href')}`;
-                    await scrapeClass(url, semesterClasses, overallPercent, overallLetter);
-                } else {
-                    let localClass = {
-                        'class_name': className,
-                        'teacher_name': false,
-                        'overall_percent': overallPercent,
-                        'overall_letter': overallLetter,
-                        'student_id': false,
-                        'section_id': false,
-                        'ps_locked': false,
-                        'grades': [],
-                    };
-
-                    semesterClasses.push(localClass);
-                }
-            }
-        }
-
-        if (title !== '') {
-            yearData[title === 'S0' ? 'S3' : title] = semesterClasses;
-            allHistory[year] = yearData;
-            scrapedTermCount++;
-        } else {
-            scrapedTermCount--;
-        }
-
-        progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
-        port?.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`});
-        console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
-    }
-
-    if (isEmptyObject(allHistory)) {
-        console.log('No class data.');
-        return {success: false, message: 'No class data.'};
-    }
-
-    console.log('Get History Complete!');
-    return {success: true, data: allHistory};
-}
-
 async function getLocked(classData, termData, port) {
     let url = 'https://powerschool.bcp.org/guardian/teachercomments.html';
     let resp = await getWithRetries(url, true);
@@ -505,7 +377,7 @@ async function getLocked(classData, termData, port) {
     let courses = table.querySelectorAll('tr');
     let classNames = Array.from(courses).slice(1).map((course) => course.querySelectorAll('td')[2].textContent);
 
-    let dataWeHave = (classData || []).filter((d) => typeof d['student_id'] === 'number' && typeof d['section_id'] === 'number');
+    let dataWeHave = (classData || []).filter((d) => typeof d['student_id'] === 'string' && typeof d['section_id'] === 'string');
     let useNewData = dataWeHave.length === 0;
 
     let newClassData = [];
@@ -624,7 +496,7 @@ async function getLocked(classData, termData, port) {
             'grades': [],
         };
 
-        localClass = await parsePSClass(localClass, await getClass(localClass));
+        localClass = await parsePSClass(localClass, await getClass(studentId, sectionId));
         allClasses.push(localClass);
         scrapedCourseCount++;
         progress = initialProgress + (maxProgress - initialProgress) * scrapedCourseCount / (totalCourseCount === 0 ? 1 : totalCourseCount);
@@ -647,6 +519,185 @@ async function getLocked(classData, termData, port) {
     port?.postMessage({type: 'status', message: 'No class data.', progress: 0});
     console.log('No class data.');
     return {success: false, message: 'No class data.'};
+}
+
+export async function getHistoryOrLocked(classData, port) {
+    let url = 'https://powerschool.bcp.org/guardian/termgrades.html';
+    let resp = await getWithRetries(url, true);
+
+    if (resp === null) {
+        console.log('Not logged in.');
+        return {success: false, message: 'Not logged in.'};
+    }
+
+    let text = await resp.text();
+    let parser = new DOMParser();
+    let doc = parser.parseFromString(text, 'text/html');
+
+    let lockedMsg = doc.querySelector('div.feedback-note');
+
+    if (lockedMsg && lockedMsg.textContent === 'Display of final grades has been disabled by your school.') {
+        // Temporarily disable locked history scraping (not yet implemented)
+        return {success: false, message: 'PowerSchool is locked.'};
+
+        port?.postMessage({type: 'status', message: 'PowerSchool is locked.'});
+        port?.postMessage({type: 'status', message: 'Getting data from locked PowerSchool...'});
+        console.log('PowerSchool is locked.');
+        console.log('Getting data from locked PowerSchool...');
+        return await getLockedHistory(classData, port);
+    }
+
+    return await getHistory(doc, port);
+}
+
+async function getHistory(doc, port) {
+    let progress = 35;
+
+    port?.postMessage({type: 'status', message: 'Searching for courses...', progress});
+    console.log('Searching for courses...');
+
+    let allHistory = {};
+
+    let yearList = doc.querySelector('ul.tabs');
+    let yearLinks = yearList.querySelectorAll('li');
+
+    let totalTermCount = yearLinks.length;
+    let scrapedTermCount = 0;
+
+    let initialProgress = progress;
+    let maxProgress = 100;
+    progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+
+    port?.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress});
+    console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
+
+    for (let yearLink of yearLinks) {
+        let link = yearLink.querySelector('a');
+        if (link.textContent.includes('SS')) {
+            totalTermCount--;
+            progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+            port?.postMessage({
+                type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
+            });
+            console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
+            continue;
+        }
+
+        let year = yearLink.textContent.trim().substring(0, 5);
+
+        if (!link.getAttribute('href')) {
+            totalTermCount--;
+            progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+            port?.postMessage({
+                type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress
+            });
+            console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
+            continue;
+        }
+
+        let url = `https://powerschool.bcp.org/guardian/${link.getAttribute('href')}`;
+        let resp = await getWithRetries(url, true);
+        let text = await resp.text();
+        let parser = new DOMParser();
+        doc = parser.parseFromString(text, 'text/html');
+
+        let mainTable = doc.querySelector('table');
+        let mainTableRows = mainTable.querySelectorAll('tr');
+
+        let title = '';
+        let semesterClasses = [];
+        let yearData = {};
+
+        for (let row of mainTableRows) {
+            let th = row.querySelector('th');
+            if ((['S0', 'S1', 'S2']).includes(th?.textContent)) {
+                if (semesterClasses.length > 0) {
+                    yearData[title === 'S0' ? 'S3' : title] = semesterClasses;
+                }
+
+                title = th.textContent;
+                semesterClasses = [];
+            }
+
+            if (title !== '' && row.querySelector('td.table-element-text-align-start')) {
+                let data = row.querySelectorAll('td');
+
+                let className = cleanString(data[0].textContent);
+                let overallLetter = cleanString(data[1].textContent);
+                let overallPercent = cleanNumber(data[2].textContent);
+
+                if (row.querySelector('a')) {
+                    url = `https://powerschool.bcp.org/guardian/${row.querySelector('a').getAttribute('href')}`;
+                    await scrapeClass(url, semesterClasses, overallPercent, overallLetter);
+                } else {
+                    let localClass = {
+                        'class_name': className,
+                        'teacher_name': false,
+                        'overall_percent': overallPercent,
+                        'overall_letter': overallLetter,
+                        'student_id': false,
+                        'section_id': false,
+                        'ps_locked': false,
+                        'grades': [],
+                    };
+
+                    semesterClasses.push(localClass);
+                }
+            }
+        }
+
+        if (title !== '') {
+            yearData[title === 'S0' ? 'S3' : title] = semesterClasses;
+            allHistory[year] = yearData;
+            scrapedTermCount++;
+        } else {
+            scrapedTermCount--;
+        }
+
+        progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+        port?.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress});
+        console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
+    }
+
+    if (isEmptyObject(allHistory)) {
+        console.log('No class data.');
+        return {success: false, message: 'No class data.'};
+    }
+
+    console.log('Get History Complete!');
+    return {success: true, data: allHistory};
+}
+
+async function getLockedHistory(classData, port) {
+    let progress = 35;
+
+    port?.postMessage({type: 'status', message: 'Syncing courses...', progress});
+    console.log('Syncing courses...');
+
+    let terms = Object.keys(classData);
+
+    let totalTermCount = terms.length;
+    let scrapedTermCount = 0;
+
+    let initialProgress = progress;
+    let maxProgress = 100;
+    progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
+
+    port?.postMessage({type: 'status', message: `Synced ${scrapedTermCount} of ${totalTermCount} terms...`, progress});
+    console.log(`Synced ${scrapedTermCount} of ${totalTermCount} terms...`);
+
+    for (let term of terms) {
+
+        let semesters = Object.keys(classData[term]);
+        for (let semester of semesters) {
+            let classes = classData[term][semester];
+            let allClasses = [];
+            let totalCourseCount = classes.length;
+            let scrapedCourseCount = 0;
+
+            // TODO: Implement locked history scraping
+        }
+    }
 }
 
 function cleanString(str) {
