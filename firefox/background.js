@@ -1,4 +1,4 @@
-import {getHistory, getPresentOrLocked} from './scraper.js';
+import {getPresentOrLocked, getHistoryOrLocked} from './scraper.js';
 
 browser.runtime.onMessage.addListener(handleMessages);
 
@@ -46,7 +46,7 @@ function handleMessages(message, sender, sendResponse) {
             }));
             return true;
         case 'get-history':
-            getHistory(_port).then((data) => sendResponse({
+            getHistoryOrLocked(message.classData || null, _port).then((data) => sendResponse({
                 type: 'get-history-response', data: data
             }));
             return true;
