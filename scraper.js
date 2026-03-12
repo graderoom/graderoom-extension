@@ -102,6 +102,8 @@ async function parsePSClass(localClass, rawData) {
         let pointsGotten = false;
         let gradePercent = false;
         let comment = false;
+        let missing = false;
+        let late = false;
         if (_data['_assignmentscores'].length) {
             let scoreData = _data['_assignmentscores'][0];
             exclude ||= scoreData['isexempt'];
@@ -120,6 +122,9 @@ async function parsePSClass(localClass, rawData) {
             if ('_assignmentscorecomment' in scoreData) {
                 comment = scoreData['_assignmentscorecomment']['commentValue'];
             }
+
+            late = scoreData['islate'];
+            missing = scoreData['ismissing'];
         }
 
         return {
@@ -128,6 +133,8 @@ async function parsePSClass(localClass, rawData) {
             'category': category,
             'assignment_name': assignmentName,
             'exclude': exclude,
+            'missing': missing,
+            'late': late,
             'points_possible': pointsPossible,
             'points_gotten': pointsGotten,
             'grade_percent': gradePercent,
@@ -152,7 +159,7 @@ async function parsePSClass(localClass, rawData) {
     return localClass;
 }
 
-async function scrapeClass(url, allClasses, overallPercent, overallLetter) {
+async function scrapeClass(url, allClasses, overallPercent, overallLetter, version) {
     let gradesResp = await getWithRetries(url);
     let gradesText = await gradesResp.text();
     let parser = new DOMParser();
@@ -175,6 +182,7 @@ async function scrapeClass(url, allClasses, overallPercent, overallLetter) {
     let studentId = wrapper.getAttribute('data-ng-init').split(';')[0].split('\'')[1].substring(3);
 
     let localClass = {
+        'extension_version': version,
         'class_name': className,
         'teacher_name': teacherName,
         'overall_percent': overallPercent,
@@ -220,7 +228,7 @@ async function getTermAndSemesterData() {
     return {term, semester};
 }
 
-export async function getPresentOrLocked(classData, termData, port) {
+export async function getPresentOrLocked(classData, termData, port, version) {
     let url = 'https://powerschool.bcp.org/guardian/termgrades.html';
     let resp = await getWithRetries(url, true);
 
@@ -240,13 +248,13 @@ export async function getPresentOrLocked(classData, termData, port) {
         port?.postMessage({type: 'status', message: 'Getting data from locked PowerSchool...'});
         console.log('PowerSchool is locked.');
         console.log('Getting data from locked PowerSchool...');
-        return await getLocked(classData, termData, port);
+        return await getLocked(classData, termData, port, version);
     }
 
-    return await getPresent(port);
+    return await getPresent(port, version);
 }
 
-async function getPresent(port) {
+async function getPresent(port, version) {
     let url = `https://powerschool.bcp.org/guardian/home.html`;
     let resp = await getWithRetries(url, true);
 
@@ -327,7 +335,7 @@ async function getPresent(port) {
         }
 
         url = `https://powerschool.bcp.org/guardian/${assignmentsLink}`;
-        if (await scrapeClass(url, allClasses, overallPercent, overallLetter)) {
+        if (await scrapeClass(url, allClasses, overallPercent, overallLetter, version)) {
             scrapedCourseCount++;
         } else {
             totalCourseCount--;
@@ -356,7 +364,7 @@ async function getPresent(port) {
     return {success: true, data: {[term]: {[semester]: allClasses}}};
 }
 
-async function getLocked(classData, termData, port) {
+async function getLocked(classData, termData, port, version) {
     let url = 'https://powerschool.bcp.org/guardian/teachercomments.html';
     let resp = await getWithRetries(url, true);
 
@@ -434,6 +442,7 @@ async function getLocked(classData, termData, port) {
             let sectionId = sectionIdDiv.childNodes[1].data.split(' ')[2];
 
             newClassData.push({
+                'extension_version': version,
                 'class_name': classNames[i],
                 'teacher_name': teacherName,
                 'overall_percent': false,
@@ -486,6 +495,7 @@ async function getLocked(classData, termData, port) {
         let studentId = data['student_id'];
         let sectionId = data['section_id'];
         let localClass = {
+            'extension_version': version,
             'class_name': className,
             'teacher_name': teacherName,
             'overall_percent': overallPercent,
@@ -521,7 +531,7 @@ async function getLocked(classData, termData, port) {
     return {success: false, message: 'No class data.'};
 }
 
-export async function getHistoryOrLocked(classData, port) {
+export async function getHistoryOrLocked(classData, port, version) {
     let url = 'https://powerschool.bcp.org/guardian/termgrades.html';
     let resp = await getWithRetries(url, true);
 
@@ -544,13 +554,13 @@ export async function getHistoryOrLocked(classData, port) {
         port?.postMessage({type: 'status', message: 'Getting data from locked PowerSchool...'});
         console.log('PowerSchool is locked.');
         console.log('Getting data from locked PowerSchool...');
-        return await getLockedHistory(classData, port);
+        return await getLockedHistory(classData, port, version);
     }
 
-    return await getHistory(doc, port);
+    return await getHistory(doc, port, version);
 }
 
-async function getHistory(doc, port) {
+async function getHistory(doc, port, version) {
     let progress = 35;
 
     port?.postMessage({type: 'status', message: 'Searching for courses...', progress});
@@ -628,9 +638,10 @@ async function getHistory(doc, port) {
 
                 if (row.querySelector('a')) {
                     url = `https://powerschool.bcp.org/guardian/${row.querySelector('a').getAttribute('href')}`;
-                    await scrapeClass(url, semesterClasses, overallPercent, overallLetter);
+                    await scrapeClass(url, semesterClasses, overallPercent, overallLetter, version);
                 } else {
                     let localClass = {
+                        'extension_version': version,
                         'class_name': className,
                         'teacher_name': false,
                         'overall_percent': overallPercent,
@@ -668,7 +679,7 @@ async function getHistory(doc, port) {
     return {success: true, data: allHistory};
 }
 
-async function getLockedHistory(classData, port) {
+async function getLockedHistory(classData, port, version) {
     let progress = 35;
 
     port?.postMessage({type: 'status', message: 'Syncing courses...', progress});

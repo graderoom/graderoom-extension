@@ -1,3 +1,5 @@
+let version = chrome.runtime.getManifest().version;
+
 chrome.runtime.onMessageExternal.addListener(handleMessages);
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -58,10 +60,11 @@ function handleMessages(message, sender, sendResponse) {
         return false;
     }
 
-    sendResponse({version: chrome.runtime.getManifest().version});
+    sendResponse({version: version});
     return false;
 }
 
 (async () => {
     await setupOffscreenDocument('offscreen.html', ['DOM_PARSER'], 'Needed to parse PowerSchool data in the background');
+    await chrome.runtime.sendMessage({type: 'set-version', version: version});
 })();
