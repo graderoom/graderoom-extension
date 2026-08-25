@@ -1,7 +1,7 @@
 {
   "name": "Graderoom",
   "description": "Graderoom extension",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "manifest_version": 3,
   "action": {
     "default_icon": "icon.png"
@@ -40,11 +40,15 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "extension@graderom.me",
+      "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": [
           "websiteContent"
         ]
       }
+    },
+    "gecko_android": {
+      "strict_min_version": "128.0"
     }
   }
 }
