@@ -28,7 +28,8 @@ window.addEventListener('message', (event) => {
         response.direction = 'from-extension';
         response.token = token;
 
-        if ((['get-present-response', 'get-history-response']).includes(response.type)) {
+        if ((['get-present-response', 'get-history-response']).includes(response.type)
+            && response.data?.message !== 'Not logged in.') {
             console.log("Disconnecting port after response");
             port?.disconnect();
             port = null;

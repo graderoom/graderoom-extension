@@ -32,6 +32,11 @@ browser.runtime.onInstalled.addListener(async () => {
 });
 
 function handleMessages(message, sender, sendResponse) {
+    if (message.type === 'ps-login' && sender.url?.startsWith('https://powerschool.bcp.org/')) {
+        _port?.postMessage({type: 'ps-login'});
+        return false;
+    }
+
     if (message.type === 'get-version') {
         sendResponse({version: browser.runtime.getManifest().version});
         return false;

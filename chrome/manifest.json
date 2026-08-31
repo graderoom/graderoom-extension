@@ -1,7 +1,7 @@
 {
   "name": "Graderoom",
   "description": "Graderoom extension",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "manifest_version": 3,
   "action": {
     "default_icon": "icon.png",
@@ -13,6 +13,16 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://powerschool.bcp.org/guardian/*"
+      ],
+      "js": [
+        "psLogin.js"
+      ]
+    }
+  ],
   "externally_connectable": {
     "matches": [
       "https://*.graderoom.me/*"
