@@ -1,15 +1,18 @@
 import {getPresentOrLocked, getHistoryOrLocked} from './scraper.js';
 
 let version = null;
+let _port = null;
 chrome.runtime.onMessage.addListener((message, sender) => {
     if (message.type === 'set-version' && sender.url === chrome.runtime.getURL("background.js")) {
         version = message.version;
+    }
+    if (message.type === 'ps-login' && sender.url?.startsWith('https://powerschool.bcp.org/')) {
+        _port?.postMessage({type: 'ps-login'});
     }
 });
 
 chrome.runtime.onMessageExternal.addListener(handleMessages);
 
-let _port = null;
 chrome.runtime.onConnectExternal.addListener((port) => {
     _port = port;
     port.onDisconnect.addListener(() => {

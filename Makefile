@@ -7,12 +7,13 @@ $(CHROME_PACKAGE):
 	xcopy icons\ $(CHROME_PACKAGE)\ /s
 	xcopy chrome\ $(CHROME_PACKAGE) /s
 	xcopy scraper.js $(CHROME_PACKAGE)
+	xcopy psLogin.js $(CHROME_PACKAGE)
 
 $(CHROME_PACKAGE).zip: $(CHROME_PACKAGE)
 	zip -rj $@ $(CHROME_PACKAGE)/* LICENSE
 
 $(FIREFOX_PACKAGE).zip:
-	zip -rj $@ icons/ firefox/ scraper.js LICENSE
+	zip -rj $@ icons/ firefox/ scraper.js psLogin.js LICENSE
 
 chrome-unpacked: $(CHROME_PACKAGE)
 
