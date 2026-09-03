@@ -60,11 +60,15 @@ function handleMessages(message, sender, sendResponse) {
         return false;
     }
 
-    sendResponse({version: version});
-    return false;
+    // The page sends get-version before every other call
+    // Hold the reply until offscreen has loaded
+    ready.then(() => sendResponse({version: version}));
+    return true;
 }
 
-(async () => {
+const ready = (async () => {
     await setupOffscreenDocument('offscreen.html', ['DOM_PARSER'], 'Needed to parse PowerSchool data in the background');
     await chrome.runtime.sendMessage({type: 'set-version', version: version});
-})();
+})().catch(() => {
+    // never leave get-version unanswered
+});
