@@ -5,7 +5,12 @@ let version = browser.runtime.getManifest().version;
 browser.runtime.onMessage.addListener(handleMessages);
 
 let _port = null;
-browser.runtime.onConnect.addListener((port) => _port = port);
+browser.runtime.onConnect.addListener((port) => {
+    _port = port;
+    port.onDisconnect.addListener(() => {
+        if (_port === port) _port = null;
+    });
+});
 
 browser.runtime.onInstalled.addListener(async () => {
     const rules = [{
@@ -38,7 +43,7 @@ function handleMessages(message, sender, sendResponse) {
     }
 
     if (message.type === 'get-version') {
-        sendResponse({version: browser.runtime.getManifest().version});
+        sendResponse({version: browser.runtime.getManifest().version, id: browser.runtime.id});
         return false;
     }
 
@@ -48,12 +53,12 @@ function handleMessages(message, sender, sendResponse) {
 
     switch (message.type) {
         case 'get-present':
-            getPresentOrLocked(message.classData || null, message.termData || null, _port, version).then((data) => sendResponse({
+            getPresentOrLocked(message.classData || null, message.termData || null, _port, version).catch((e) => ({success: false, message: e.message})).then((data) => sendResponse({
                 type: 'get-present-response', data: data
             }));
             return true;
         case 'get-history':
-            getHistoryOrLocked(message.classData || null, _port, version).then((data) => sendResponse({
+            getHistoryOrLocked(message.classData || null, _port, version).catch((e) => ({success: false, message: e.message})).then((data) => sendResponse({
                 type: 'get-history-response', data: data
             }));
             return true;

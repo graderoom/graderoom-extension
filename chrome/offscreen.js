@@ -27,12 +27,12 @@ function handleMessages(message, sender, sendResponse) {
 
     switch (message.type) {
         case 'get-present':
-            getPresentOrLocked(message.classData || null, message.termData || null, _port, version).then((data) => sendResponse({
+            getPresentOrLocked(message.classData || null, message.termData || null, _port, version).catch((e) => ({success: false, message: e.message})).then((data) => sendResponse({
                 type: 'get-present-response', data: data
             }));
             return true;
         case 'get-history':
-            getHistoryOrLocked(message.classData || null, _port, version).then((data) => sendResponse({
+            getHistoryOrLocked(message.classData || null, _port, version).catch((e) => ({success: false, message: e.message})).then((data) => sendResponse({
                 type: 'get-history-response', data: data
             }));
             return true;
