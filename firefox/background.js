@@ -43,7 +43,7 @@ function handleMessages(message, sender, sendResponse) {
     }
 
     if (message.type === 'get-version') {
-        sendResponse({version: browser.runtime.getManifest().version});
+        sendResponse({version: browser.runtime.getManifest().version, id: browser.runtime.id});
         return false;
     }
 

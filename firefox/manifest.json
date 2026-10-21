@@ -47,7 +47,7 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "extension@graderom.me",
+      "id": "extension@graderoom.me",
       "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": [
