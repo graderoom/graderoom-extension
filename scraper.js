@@ -144,13 +144,9 @@ async function parsePSClass(localClass, rawData) {
         };
     }
 
-    function removeEmpty(value) {
-        return value !== null;
-    }
-
     let raw = await rawData.json();
 
-    localClass.grades = raw.map(stripper).filter(removeEmpty).sort((a, b) => a.sort_date - b.sort_date);
+    localClass.grades = raw.map(stripper).filter(Boolean).sort((a, b) => a.sort_date - b.sort_date);
     localClass.grades = localClass.grades.map(grade => {
         delete grade.sort_date;
         return grade;
@@ -419,7 +415,7 @@ async function getLocked(classData, termData, port, version) {
     if (termData !== null) {
         progress = 25;
         port?.postMessage({type: 'status', message: 'Fetching terms...', progress});
-        let {_term, _semester} = await getTermAndSemesterData();
+        let {term: _term, semester: _semester} = await getTermAndSemesterData();
         if (termData['term'] !== _term) {
             useNewData = true;
             term = _term;
@@ -662,7 +658,7 @@ async function getHistory(doc, port, version) {
             allHistory[year] = yearData;
             scrapedTermCount++;
         } else {
-            scrapedTermCount--;
+            totalTermCount--;
         }
 
         progress = initialProgress + (maxProgress - initialProgress) * scrapedTermCount / (totalTermCount === 0 ? 1 : totalTermCount);
