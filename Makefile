@@ -1,28 +1,31 @@
-.PHONY: package clean chrome-debug firefox-debug debug firefox-legacy
+.PHONY: package clean chrome-debug firefox-debug debug firefox-legacy firefox-legacy-debug
 
 CHROME_PACKAGE = graderoom-chrome-extension
 CHROME_DEBUG = graderoom-chrome-debug
 FIREFOX_PACKAGE = graderoom-firefox-extension
 FIREFOX_DEBUG = graderoom-firefox-debug
 FIREFOX_LEGACY = graderoom-firefox-legacy
+FIREFOX_LEGACY_DEBUG = graderoom-firefox-legacy-debug
 
 $(CHROME_PACKAGE):
 	xcopy icons\ $(CHROME_PACKAGE)\ /s
 	xcopy chrome\ $(CHROME_PACKAGE) /s
 	xcopy scraper.js $(CHROME_PACKAGE)
 	xcopy psLogin.js $(CHROME_PACKAGE)
+	xcopy psPublic.js $(CHROME_PACKAGE)
 
 $(CHROME_PACKAGE).zip: $(CHROME_PACKAGE)
 	zip -rj $@ $(CHROME_PACKAGE)/* LICENSE
 
 $(FIREFOX_PACKAGE).zip:
-	zip -rj $@ icons/ firefox/ scraper.js psLogin.js LICENSE
+	zip -rj $@ icons/ firefox/ scraper.js psLogin.js psPublic.js LICENSE
 
 $(CHROME_DEBUG):
 	xcopy icons\ $(CHROME_DEBUG)\ /s
 	xcopy chrome\ $(CHROME_DEBUG) /s
 	xcopy scraper.js $(CHROME_DEBUG)
 	xcopy psLogin.js $(CHROME_DEBUG)
+	xcopy psPublic.js $(CHROME_DEBUG)
 	node debug-manifest.js $(CHROME_DEBUG)\manifest.json
 
 # firefox-package zips straight from the sources, but the debug manifest has to be patched
@@ -32,6 +35,7 @@ $(FIREFOX_DEBUG):
 	xcopy firefox\ $(FIREFOX_DEBUG) /s
 	xcopy scraper.js $(FIREFOX_DEBUG)
 	xcopy psLogin.js $(FIREFOX_DEBUG)
+	xcopy psPublic.js $(FIREFOX_DEBUG)
 	node debug-manifest.js $(FIREFOX_DEBUG)\manifest.json
 
 $(FIREFOX_DEBUG).zip: $(FIREFOX_DEBUG)
@@ -43,12 +47,22 @@ $(FIREFOX_LEGACY):
 	xcopy firefox\ $(FIREFOX_LEGACY) /s
 	xcopy scraper.js $(FIREFOX_LEGACY)
 	xcopy psLogin.js $(FIREFOX_LEGACY)
+	xcopy psPublic.js $(FIREFOX_LEGACY)
 	node -e "const f=process.argv[1],m=require('./'+f);m.browser_specific_settings.gecko.id='extension@graderom.me';require('fs').writeFileSync(f,JSON.stringify(m,null,2)+'\n')" $(FIREFOX_LEGACY)/manifest.json
 
 $(FIREFOX_LEGACY).zip: $(FIREFOX_LEGACY)
 	zip -rj $@ $(FIREFOX_LEGACY)/* LICENSE
 
 firefox-legacy: $(FIREFOX_LEGACY).zip
+
+$(FIREFOX_LEGACY_DEBUG): $(FIREFOX_LEGACY)
+	xcopy $(FIREFOX_LEGACY)\ $(FIREFOX_LEGACY_DEBUG)\ /s
+	node debug-manifest.js $(FIREFOX_LEGACY_DEBUG)\manifest.json
+
+$(FIREFOX_LEGACY_DEBUG).zip: $(FIREFOX_LEGACY_DEBUG)
+	zip -rj $@ $(FIREFOX_LEGACY_DEBUG)/* LICENSE
+
+firefox-legacy-debug: $(FIREFOX_LEGACY_DEBUG).zip
 
 chrome-unpacked: $(CHROME_PACKAGE)
 
@@ -71,5 +85,7 @@ clean:
 	IF EXIST $(FIREFOX_DEBUG).zip DEL $(FIREFOX_DEBUG).zip
 	IF EXIST $(FIREFOX_LEGACY) rmdir /s /q $(FIREFOX_LEGACY)
 	IF EXIST $(FIREFOX_LEGACY).zip DEL $(FIREFOX_LEGACY).zip
+	IF EXIST $(FIREFOX_LEGACY_DEBUG) rmdir /s /q $(FIREFOX_LEGACY_DEBUG)
+	IF EXIST $(FIREFOX_LEGACY_DEBUG).zip DEL $(FIREFOX_LEGACY_DEBUG).zip
 	DEL $(CHROME_PACKAGE).zip
 	DEL $(FIREFOX_PACKAGE).zip

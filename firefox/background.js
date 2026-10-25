@@ -2,6 +2,30 @@ import {getPresentOrLocked, getHistoryOrLocked} from './scraper.js';
 
 let version = browser.runtime.getManifest().version;
 
+const ADDON_ID = 'extension@graderoom.me';
+const LEGACY_ID = 'extension@graderom.me';
+let retired = false;
+
+function retire() {
+    retired = true;
+    browser.management.uninstallSelf();
+}
+
+// The old listing's build removes itself once the new add-on is installed; Graderoom prompts the install
+if (browser.runtime.id === LEGACY_ID) {
+    browser.runtime.sendMessage(ADDON_ID, {type: 'ping'}).then(retire, () => {});
+    browser.runtime.onMessageExternal.addListener((message, sender) => {
+        if (sender.id === ADDON_ID && message.type === 'replaced') retire();
+    });
+} else {
+    browser.runtime.onMessageExternal.addListener((message, sender) => {
+        if (sender.id === LEGACY_ID && message.type === 'ping') return Promise.resolve(true);
+    });
+    browser.runtime.onInstalled.addListener(() => {
+        browser.runtime.sendMessage(LEGACY_ID, {type: 'replaced'}).catch(() => {});
+    });
+}
+
 browser.runtime.onMessage.addListener(handleMessages);
 
 const ports = new Set();
@@ -48,6 +72,11 @@ browser.runtime.onInstalled.addListener(async () => {
 });
 
 function handleMessages(message, sender, sendResponse) {
+    // Rejecting keeps content.js from relaying an empty reply that would beat the new add-on's
+    if (retired) {
+        return Promise.reject(new Error('Replaced by the new Graderoom add-on'));
+    }
+
     if (message.type === 'ps-login' && sender.url?.startsWith('https://powerschool.bcp.org/')) {
         _port.postMessage({type: 'ps-login'});
         return false;
